@@ -1,1 +1,90 @@
-backend/node_modules/.cache/mongodb-memory-server/
+# Node.js / JavaScript
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.yarn-integrity
+.npm
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Backend specific
+backend/uploads/
+backend/coverage/
+backend/dist/
+backend/build/
+
+# Frontend specific
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel
+frontend/coverage/
+frontend/.swc/
+
+# Build files
+*.tsbuildinfo
+.eslintcache
+
+# Operating system files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+*.lnk
+
+# Logs
+logs
+*.log
+
+# Debug
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Testing
+coverage/
+.nyc_output/
+
+# MongoDB local data
+data/db/
+
+# Python (for future microservice)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+ENV/
+
+# Miscellaneous
+.cache/
+.temp/
+.tmp/
+tmp/
+.history/
