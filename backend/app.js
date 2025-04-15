@@ -3,17 +3,17 @@ const cors = require('cors');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const path = require('path');
+const helmet = require('helmet');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
-
-// Connect to MongoDB
-connectDB();
+const errorHandler = require('./middleware/errorHandler');
 
 // Create Express app
 const app = express();
 
-// Middleware
+// Security middleware
+app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
 app.use(bodyParser.json());
@@ -24,23 +24,22 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 const requestsRouter = require('./routes/requests');
+const uploadController = require('./controllers/uploadController');
+const upload = require('./middleware/uploadMiddleware');
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Server is running' });
-});
+// Ensure uploads directory exists
+const fs = require('fs');
+const uploadDir = 'uploads';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
-// API routes with versioning
+// API Routes
 app.use('/api/v1/requests', requestsRouter);
+app.post('/api/v1/uploads', upload.single('file'), uploadController.uploadAudio);
+app.get('/api/v1/uploads/:filename', uploadController.streamAudio);
 
-// 404 Handler
-app.use((req, res, next) => {
-  res.status(404).json({ error: 'Not Found' });
-});
-
-const errorHandler = require('./middleware/errorHandler');
-
-// Error Handler Middleware
+// Error handling middleware
 app.use(errorHandler);
 
 module.exports = app;
