@@ -9,6 +9,13 @@ const errorHandler = (err, req, res, _next) => {
     }
   };
 
+  // Handle Multer file size limit error
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    errorResponse.error.code = 'VALIDATION_ERROR';
+    errorResponse.error.message = 'File size exceeds the allowed limit';
+    return res.status(400).json(errorResponse);
+  }
+
   // Determine HTTP status code based on error type
   let statusCode = 500;
   switch (err.code) {

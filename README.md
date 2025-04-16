@@ -56,7 +56,7 @@ Development follows an incremental approach:
 4. **v0.3.0**: Integration - Python microservice for audio processing
 5. **v1.0.0**: Production - Final polishing and optimizations
 
-Detailed tasks for each version can be found in the `/docs/tasks/` directory.
+Detailed tasks for each version can be found in the `/tasks/` directory.
 
 ### Coding Standards
 
@@ -69,7 +69,38 @@ All code must adhere to the standards defined in `codebase_rules.md`. This inclu
 
 ## Development
 
+### Project Setup
+
+#### Prerequisites
+- Node.js (v14.x or higher)
+- npm (v7.x or higher)
+- MongoDB (v4.4 or higher)
+
+#### Installation
+1. Clone the repository:
+```bash
+git clone https://github.com/Psheikomaniac/sonoverse.git
+cd sonoverse
+```
+
+2. Install backend dependencies:
+```bash
+cd backend
+npm install
+```
+
+3. Install frontend dependencies:
+```bash
+cd ../frontend
+npm install
+```
+
+4. Setup environment variables:
+   - Create `.env` file in the backend directory based on `.env.example`
+   - Set your MongoDB connection string and other required variables
+
 ### Testing
+#### Backend Tests
 Backend tests are implemented using Jest and Supertest. The test suite includes:
 - Unit tests for music request operations
 - Integration tests for API endpoints
@@ -89,12 +120,28 @@ npm run test:coverage
 
 The tests use mongodb-memory-server to run an in-memory MongoDB instance, ensuring tests are isolated and don't affect your development database.
 
+#### Frontend Tests
+Frontend tests are implemented using Jest and React Testing Library. The test suite includes:
+- Unit tests for React components
+- Tests for UI behavior and interactions
+
+To run the tests:
+```bash
+# Run all tests
+cd frontend && npm test
+
+# Run tests in watch mode
+npm run test:watch
+```
+
 ### API Documentation
-API documentation is available in `backend/docs/api.md`. It includes detailed information about:
+API documentation is available in `docs/api.md`. It includes detailed information about:
 - Available endpoints
 - Request/response formats
 - Authentication (future versions)
 - Error handling
+- Example requests and responses for all endpoints
+- Error codes and their descriptions
 
 ### Running the Application
 ```bash
@@ -102,12 +149,74 @@ API documentation is available in `backend/docs/api.md`. It includes detailed in
 cd backend
 npm start
 
-# Start frontend
-cd ../frontend
-npm start
+# Start frontend in a new terminal
+cd frontend
+npm run dev
 ```
 
 Open your browser and navigate to `http://localhost:3000`
+
+### Project Structure
+
+```
+sonoverse/
+├── backend/               # Express.js backend application
+│   ├── config/            # Configuration files
+│   ├── controllers/       # Request handlers
+│   ├── middleware/        # Express middleware
+│   ├── models/            # Mongoose models
+│   ├── routes/            # API routes
+│   └── services/          # Business logic layer
+├── frontend/              # Next.js frontend application
+│   ├── app/               # Next.js app router pages
+│   ├── components/        # Reusable React components
+│   ├── lib/               # Utility functions and services
+│   └── __tests__/         # Frontend tests
+├── docs/                  # Project documentation
+│   ├── api.md             # API documentation
+│   ├── changelog.md       # Project changelog
+│   └── codebase_rules.md  # Coding standards and guidelines
+└── tasks/                 # Development task lists
+    ├── roadmap.md         # Overall development roadmap
+    └── version-*.md       # Version-specific task lists
+```
+
+### Development Workflow
+
+1. **Starting a new feature**:
+   ```bash
+   git checkout develop
+   git pull origin develop
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Making changes**:
+   - Implement your changes following the project's coding standards
+   - Add comprehensive tests for your changes
+   - Update documentation as needed
+
+3. **Committing your changes**:
+   ```bash
+   git add .
+   git commit -m "feat: add your feature description"
+   ```
+   Follow the [conventional commits](https://www.conventionalcommits.org/) format:
+   - `feat:` for new features
+   - `fix:` for bug fixes
+   - `docs:` for documentation updates
+   - `test:` for test additions or updates
+   - `refactor:` for code changes that neither fix bugs nor add features
+
+4. **Pushing your changes**:
+   ```bash
+   git push -u origin feature/your-feature-name
+   ```
+
+5. **Creating a Pull Request**:
+   - Go to the GitHub repository
+   - Create a new Pull Request from your feature branch to `develop`
+   - Complete the PR template with details about your changes
+   - Request reviews from team members
 
 ## License
 

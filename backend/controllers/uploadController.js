@@ -57,11 +57,11 @@ class UploadController {
     try {
       const { filename } = req.params;
       
-      // Prevent path traversal attacks
-      if (filename.includes('..') || filename.includes('/')) {
-        const error = new Error('Invalid filename');
+      // Prevent path traversal attacks - stricter check
+      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        const error = new Error('Invalid filename - path traversal attempt detected');
         error.code = 'VALIDATION_ERROR';
-        throw error;
+        return next(error);
       }
       
       const filePath = path.join(__dirname, '../uploads', filename);
@@ -69,9 +69,9 @@ class UploadController {
       
       // Additional path traversal check
       if (!normalizedPath.startsWith(path.join(__dirname, '../uploads'))) {
-        const error = new Error('Invalid filename');
+        const error = new Error('Invalid filename - path traversal attempt detected');
         error.code = 'VALIDATION_ERROR';
-        throw error;
+        return next(error);
       }
 
       // Check if file exists

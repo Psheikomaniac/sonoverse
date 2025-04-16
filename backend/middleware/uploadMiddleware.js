@@ -25,13 +25,27 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Multer configuration
+// Add file size limit and path traversal protection
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  storage,
+  fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB Limit
+    fileSize: 10 * 1024 * 1024, // 10MB file size limit
   }
 });
 
-module.exports = upload;
+// Middleware to validate file paths
+const validateFilePath = (req, res, next) => {
+  const filename = req.params.filename;
+  if (filename.includes('..') || path.isAbsolute(filename)) {
+    return res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid filename',
+      },
+    });
+  }
+  next();
+};
+
+module.exports = { upload, validateFilePath };

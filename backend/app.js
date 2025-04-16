@@ -34,10 +34,33 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
+// Path traversal protection middleware
+const pathTraversalProtection = (req, res, next) => {
+  if (req.params.filename && (
+      req.params.filename.includes('..') ||
+      req.params.filename.includes('/') ||
+      req.params.filename.includes('\\')
+    )) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        message: 'Invalid filename - path traversal attempt detected',
+        code: 'VALIDATION_ERROR'
+      }
+    });
+  }
+  next();
+};
+
 // API Routes
 app.use('/api/v1/requests', requestsRouter);
-app.post('/api/v1/uploads', upload.single('file'), uploadController.uploadAudio);
-app.get('/api/v1/uploads/:filename', uploadController.streamAudio);
+app.post('/api/v1/uploads', upload.upload.single('audio'), uploadController.uploadAudio);
+app.get('/api/v1/uploads/:filename', pathTraversalProtection, uploadController.streamAudio);
+
+// Health check route
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 // Error handling middleware
 app.use(errorHandler);
