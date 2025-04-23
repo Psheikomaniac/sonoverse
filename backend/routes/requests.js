@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const musicRequestController = require('../controllers/musicRequestController');
+const statusController = require('../controllers/statusController');
 const validateMusicRequest = require('../middleware/validateMusicRequest');
 const validateLyrics = require('../middleware/validateLyrics');
+const loadMusicRequest = require('../middleware/loadMusicRequest');
+const validateStatusTransition = require('../middleware/validateStatusTransition');
 
 // GET /api/v1/requests - Alle Musikanfragen abrufen
 router.get('/', musicRequestController.getAllRequests);
@@ -20,7 +23,10 @@ router.post('/', validateMusicRequest, musicRequestController.createRequest);
 router.put('/:id', validateMusicRequest, musicRequestController.updateRequest);
 
 // PATCH /api/v1/requests/:id/status - Status einer Musikanfrage aktualisieren
-router.patch('/:id/status', musicRequestController.updateRequestStatus);
+router.patch('/:id/status', loadMusicRequest, validateStatusTransition, statusController.updateStatus);
+
+// GET /api/v1/requests/:id/status/history - Status-Historie einer Musikanfrage abrufen
+router.get('/:id/status/history', loadMusicRequest, statusController.getStatusHistory);
 
 // PATCH /api/v1/requests/:id/lyrics - Songtext einer Musikanfrage aktualisieren
 router.patch('/:id/lyrics', validateLyrics, musicRequestController.updateLyrics);
