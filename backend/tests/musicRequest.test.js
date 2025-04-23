@@ -332,7 +332,7 @@ describe('Music Request API', () => {
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('should validate lyrics length', async () => {
+    it('should validate maximum lyrics length', async () => {
       // Create lyrics that exceed the 5000 character limit
       const longLyrics = 'a'.repeat(5001);
 
@@ -343,6 +343,62 @@ describe('Music Request API', () => {
       expect(res.statusCode).toBe(400);
       expect(res.body.success).toBe(false);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should validate minimum lyrics length', async () => {
+      // Create lyrics that are too short (less than 10 characters)
+      const shortLyrics = 'abc';
+
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ lyrics: shortLyrics });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('at least 10 characters');
+    });
+
+    it('should validate lyrics structure (minimum lines)', async () => {
+      // Create lyrics with only one line
+      const singleLineLyrics = 'This is just a single line with no line breaks';
+
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ lyrics: singleLineLyrics });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('at least 2 lines');
+    });
+
+    it('should validate lyrics format (excessive repetition)', async () => {
+      // Create lyrics with excessive repetition
+      const repetitiveLyrics = 'Same line\nSame line\nSame line\nSame line\nSame line\nSame line\nSame line\nSame line\nSame line\nSame line';
+
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ lyrics: repetitiveLyrics });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('repetitive lines');
+    });
+
+    it('should validate lyrics for invalid characters or patterns', async () => {
+      // Create lyrics with invalid characters (line with only special characters)
+      const invalidLyrics = 'This is a valid line\n@#$%^&*()!@#$%^&*()';
+
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ lyrics: invalidLyrics });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('invalid characters or patterns');
     });
   });
 

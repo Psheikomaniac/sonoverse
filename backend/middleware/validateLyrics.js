@@ -115,7 +115,6 @@ const validateLyrics = (req, res, next) => {
       }
     });
   }
-
   // Wenn keine Fehler, fahre mit dem nächsten Middleware fort
   next();
 };
