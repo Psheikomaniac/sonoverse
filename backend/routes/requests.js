@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const musicRequestController = require('../controllers/musicRequestController');
 const validateMusicRequest = require('../middleware/validateMusicRequest');
+const validateLyrics = require('../middleware/validateLyrics');
 
 // GET /api/v1/requests - Alle Musikanfragen abrufen
 router.get('/', musicRequestController.getAllRequests);
@@ -22,7 +23,7 @@ router.put('/:id', validateMusicRequest, musicRequestController.updateRequest);
 router.patch('/:id/status', musicRequestController.updateRequestStatus);
 
 // PATCH /api/v1/requests/:id/lyrics - Songtext einer Musikanfrage aktualisieren
-router.patch('/:id/lyrics', musicRequestController.updateLyrics);
+router.patch('/:id/lyrics', validateLyrics, musicRequestController.updateLyrics);
 
 // DELETE /api/v1/requests/:id - Musikanfrage löschen
 router.delete('/:id', musicRequestController.deleteRequest);
