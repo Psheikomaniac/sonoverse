@@ -322,6 +322,254 @@ class MusicRequestService {
   }
 
   /**
+   * Aktualisiert den Songtext einer Musikanfrage mit Versionierung und Formatierung
+   * @param {string} id - Die ID der Musikanfrage
+   * @param {string} lyrics - Der neue Songtext
+   * @param {Object} format - Formatierungsoptionen für den Songtext
+   * @param {string} changes - Optionale Beschreibung der Änderungen
+   * @returns {Promise<Object>} Die aktualisierte Musikanfrage
+   */
+  async updateLyrics(id, lyrics, format = {}, changes = '') {
+    try {
+      const request = await MusicRequest.findById(id);
+      if (!request) {
+        const error = new Error('Music request not found');
+        error.code = 'REQUEST_NOT_FOUND';
+        throw error;
+      }
+
+      // Bestimme die nächste Versionsnummer
+      let nextVersion = 1;
+      if (request.lyricsVersions && request.lyricsVersions.length > 0) {
+        nextVersion = Math.max(...request.lyricsVersions.map(v => v.version)) + 1;
+      }
+
+      // Validiere und normalisiere das Format-Objekt
+      const normalizedFormat = this._normalizeFormatObject(format);
+
+      // Erstelle einen neuen Versionseintrag
+      const newVersion = {
+        text: lyrics,
+        format: normalizedFormat,
+        version: nextVersion,
+        createdAt: new Date(),
+        changes: changes
+      };
+
+      // Füge die neue Version hinzu
+      if (!request.lyricsVersions) {
+        request.lyricsVersions = [];
+      }
+      request.lyricsVersions.push(newVersion);
+
+      // Speichere die Änderungen
+      return await request.save();
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
+   * Holt den Versionsverlauf eines Songtextes
+   * @param {string} id - Die ID der Musikanfrage
+   * @returns {Promise<Object>} Die Versionshistorie des Songtextes
+   */
+  async getLyricsHistory(id) {
+    try {
+      const request = await MusicRequest.findById(id);
+      if (!request) {
+        const error = new Error('Music request not found');
+        error.code = 'REQUEST_NOT_FOUND';
+        throw error;
+      }
+
+      if (!request.lyricsVersions || request.lyricsVersions.length === 0) {
+        return { versions: [] };
+      }
+
+      // Sortiere die Versionen nach Versionsnummer absteigend (neueste zuerst)
+      const sortedVersions = [...request.lyricsVersions].sort((a, b) => b.version - a.version);
+
+      // Bereite die Antwort vor
+      return {
+        requestId: request._id,
+        title: request.title,
+        currentVersion: request.lyricsVersion,
+        versions: sortedVersions.map(v => ({
+          version: v.version,
+          text: v.text,
+          format: v.format,
+          createdAt: v.createdAt,
+          changes: v.changes
+        }))
+      };
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
+   * Holt eine spezifische Version eines Songtextes
+   * @param {string} id - Die ID der Musikanfrage
+   * @param {number} version - Die Versionsnummer
+   * @returns {Promise<Object>} Die angeforderte Version des Songtextes
+   */
+  async getLyricsVersion(id, version) {
+    try {
+      const request = await MusicRequest.findById(id);
+      if (!request) {
+        const error = new Error('Music request not found');
+        error.code = 'REQUEST_NOT_FOUND';
+        throw error;
+      }
+
+      if (!request.lyricsVersions || request.lyricsVersions.length === 0) {
+        const error = new Error('No lyrics versions found for this request');
+        error.code = 'VERSION_NOT_FOUND';
+        throw error;
+      }
+
+      // Finde die angeforderte Version
+      const requestedVersion = request.lyricsVersions.find(v => v.version === parseInt(version));
+      if (!requestedVersion) {
+        const error = new Error(`Lyrics version ${version} not found`);
+        error.code = 'VERSION_NOT_FOUND';
+        throw error;
+      }
+
+      // Bereite die Antwort vor
+      return {
+        requestId: request._id,
+        title: request.title,
+        currentVersion: request.lyricsVersion,
+        requestedVersion: {
+          version: requestedVersion.version,
+          text: requestedVersion.text,
+          format: requestedVersion.format,
+          createdAt: requestedVersion.createdAt,
+          changes: requestedVersion.changes
+        }
+      };
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
+   * Vergleicht zwei Versionen eines Songtextes
+   * @param {string} id - Die ID der Musikanfrage
+   * @param {number} version1 - Die erste Versionsnummer
+   * @param {number} version2 - Die zweite Versionsnummer
+   * @returns {Promise<Object>} Der Vergleich der beiden Versionen
+   */
+  async compareLyricsVersions(id, version1, version2) {
+    try {
+      const request = await MusicRequest.findById(id);
+      if (!request) {
+        const error = new Error('Music request not found');
+        error.code = 'REQUEST_NOT_FOUND';
+        throw error;
+      }
+
+      if (!request.lyricsVersions || request.lyricsVersions.length < 2) {
+        const error = new Error('Not enough versions to compare');
+        error.code = 'COMPARISON_ERROR';
+        throw error;
+      }
+
+      // Parse die Versionsnummern
+      const v1 = parseInt(version1);
+      const v2 = parseInt(version2);
+
+      // Finde die angeforderten Versionen
+      const version1Data = request.lyricsVersions.find(v => v.version === v1);
+      const version2Data = request.lyricsVersions.find(v => v.version === v2);
+
+      if (!version1Data) {
+        const error = new Error(`Lyrics version ${version1} not found`);
+        error.code = 'VERSION_NOT_FOUND';
+        throw error;
+      }
+
+      if (!version2Data) {
+        const error = new Error(`Lyrics version ${version2} not found`);
+        error.code = 'VERSION_NOT_FOUND';
+        throw error;
+      }
+
+      // Bereite die Antwort vor
+      return {
+        requestId: request._id,
+        title: request.title,
+        currentVersion: request.lyricsVersion,
+        comparison: {
+          version1: {
+            version: version1Data.version,
+            text: version1Data.text,
+            format: version1Data.format,
+            createdAt: version1Data.createdAt,
+            changes: version1Data.changes
+          },
+          version2: {
+            version: version2Data.version,
+            text: version2Data.text,
+            format: version2Data.format,
+            createdAt: version2Data.createdAt,
+            changes: version2Data.changes
+          }
+        }
+      };
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
+   * Normalisiert und validiert das Format-Objekt
+   * @private
+   * @param {Object} format - Das zu normalisierende Format-Objekt
+   * @returns {Object} Das normalisierte Format-Objekt
+   */
+  _normalizeFormatObject(format) {
+    // Erstelle ein Basis-Format-Objekt mit Standardwerten
+    const normalizedFormat = {
+      structure: [],
+      styles: []
+    };
+
+    // Wenn kein Format-Objekt übergeben wurde, gib das Standard-Objekt zurück
+    if (!format) return normalizedFormat;
+
+    // Füge Struktur-Informationen hinzu, falls vorhanden
+    if (format.structure && Array.isArray(format.structure)) {
+      // Validiere jedes Struktur-Element
+      normalizedFormat.structure = format.structure
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          type: item.type || 'verse', // Standard: verse
+          startLine: parseInt(item.startLine) || 0,
+          endLine: parseInt(item.endLine) || 0,
+          label: item.label || ''
+        }));
+    }
+
+    // Füge Stil-Informationen hinzu, falls vorhanden
+    if (format.styles && Array.isArray(format.styles)) {
+      // Validiere jedes Stil-Element
+      normalizedFormat.styles = format.styles
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          type: item.type || 'normal', // Standard: normal
+          startPos: parseInt(item.startPos) || 0,
+          endPos: parseInt(item.endPos) || 0,
+          line: parseInt(item.line) || 0
+        }));
+    }
+
+    return normalizedFormat;
+  }
+
+  /**
    * Standardisierte Fehlerbehandlung
    * @private
    */
