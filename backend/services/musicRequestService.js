@@ -227,6 +227,49 @@ class MusicRequestService {
   }
 
   /**
+   * Aktualisiert den Songtext einer Musikanfrage mit Versionierung
+   * @param {string} id - Die ID der Musikanfrage
+   * @param {string} lyrics - Der neue Songtext
+   * @param {string} changes - Optionale Beschreibung der Änderungen
+   * @returns {Promise<Object>} Die aktualisierte Musikanfrage
+   */
+  async updateLyrics(id, lyrics, changes = '') {
+    try {
+      const request = await MusicRequest.findById(id);
+      if (!request) {
+        const error = new Error('Music request not found');
+        error.code = 'REQUEST_NOT_FOUND';
+        throw error;
+      }
+
+      // Bestimme die nächste Versionsnummer
+      let nextVersion = 1;
+      if (request.lyricsVersions && request.lyricsVersions.length > 0) {
+        nextVersion = Math.max(...request.lyricsVersions.map(v => v.version)) + 1;
+      }
+
+      // Erstelle einen neuen Versionseintrag
+      const newVersion = {
+        text: lyrics,
+        version: nextVersion,
+        createdAt: new Date(),
+        changes: changes
+      };
+
+      // Füge die neue Version hinzu
+      if (!request.lyricsVersions) {
+        request.lyricsVersions = [];
+      }
+      request.lyricsVersions.push(newVersion);
+
+      // Speichere die Änderungen
+      return await request.save();
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
    * Sucht Musikanfragen nach verschiedenen Kriterien
    * @param {Object} searchParams - Suchparameter
    * @param {string} searchParams.query - Suchbegriff für Titel oder Beschreibung
