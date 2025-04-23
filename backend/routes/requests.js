@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const musicRequestController = require('../controllers/musicRequestController');
+const validateMusicRequest = require('../middleware/validateMusicRequest');
 
 // GET /api/v1/requests - Alle Musikanfragen abrufen
 router.get('/', musicRequestController.getAllRequests);
@@ -9,10 +10,10 @@ router.get('/', musicRequestController.getAllRequests);
 router.get('/:id', musicRequestController.getRequestById);
 
 // POST /api/v1/requests - Neue Musikanfrage erstellen
-router.post('/', musicRequestController.createRequest);
+router.post('/', validateMusicRequest, musicRequestController.createRequest);
 
 // PUT /api/v1/requests/:id - Musikanfrage aktualisieren
-router.put('/:id', musicRequestController.updateRequest);
+router.put('/:id', validateMusicRequest, musicRequestController.updateRequest);
 
 // PATCH /api/v1/requests/:id/status - Status einer Musikanfrage aktualisieren
 router.patch('/:id/status', musicRequestController.updateRequestStatus);
