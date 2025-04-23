@@ -18,7 +18,7 @@ class MusicRequestService {
 
   /**
    * Holt alle Musikanfragen mit Pagination und Filteroptionen
-   * @param {Object} options - Filteroptionen (limit, page, status, genre, startDate, endDate, sortBy, sortOrder)
+   * @param {Object} options - Filteroptionen (limit, page, status, genre, startDate, endDate, sortBy, sortOrder, instrumentList, keySignature, targetAudience, vocalStyle, structureNotes)
    * @returns {Promise<Object>} Musikanfragen und Pagination-Informationen
    */
   async getAllRequests({ 
@@ -29,7 +29,12 @@ class MusicRequestService {
     startDate = null, 
     endDate = null,
     sortBy = 'createdAt',
-    sortOrder = 'desc'
+    sortOrder = 'desc',
+    instrumentList = null,
+    keySignature = null,
+    targetAudience = null,
+    vocalStyle = null,
+    structureNotes = null
   }) {
     try {
       // Build query based on filters
@@ -41,6 +46,31 @@ class MusicRequestService {
 
       if (genre) {
         query.genre = genre;
+      }
+
+      // Filter by instrumentList (if any instrument in the list is present)
+      if (instrumentList && Array.isArray(instrumentList) && instrumentList.length > 0) {
+        query.instrumentList = { $in: instrumentList };
+      }
+
+      // Filter by keySignature
+      if (keySignature) {
+        query.keySignature = keySignature;
+      }
+
+      // Filter by targetAudience (partial match)
+      if (targetAudience) {
+        query.targetAudience = { $regex: targetAudience, $options: 'i' };
+      }
+
+      // Filter by vocalStyle (partial match)
+      if (vocalStyle) {
+        query.vocalStyle = { $regex: vocalStyle, $options: 'i' };
+      }
+
+      // Filter by structureNotes (partial match)
+      if (structureNotes) {
+        query.structureNotes = { $regex: structureNotes, $options: 'i' };
       }
 
       // Date range filter
@@ -58,7 +88,7 @@ class MusicRequestService {
 
       // Build sort object
       const sort = {};
-      const validSortFields = ['createdAt', 'title', 'genre', 'mood', 'tempo'];
+      const validSortFields = ['createdAt', 'title', 'genre', 'mood', 'tempo', 'keySignature'];
 
       if (validSortFields.includes(sortBy)) {
         sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
@@ -226,52 +256,6 @@ class MusicRequestService {
     }
   }
 
-  /**
-   * Aktualisiert den Songtext einer Musikanfrage mit Versionierung und Formatierung
-   * @param {string} id - Die ID der Musikanfrage
-   * @param {string} lyrics - Der neue Songtext
-   * @param {Object} format - Formatierungsoptionen für den Songtext
-   * @param {string} changes - Optionale Beschreibung der Änderungen
-   * @returns {Promise<Object>} Die aktualisierte Musikanfrage
-   */
-    try {
-      const request = await MusicRequest.findById(id);
-      if (!request) {
-        const error = new Error('Music request not found');
-        error.code = 'REQUEST_NOT_FOUND';
-        throw error;
-      }
-
-      // Bestimme die nächste Versionsnummer
-      let nextVersion = 1;
-      if (request.lyricsVersions && request.lyricsVersions.length > 0) {
-        nextVersion = Math.max(...request.lyricsVersions.map(v => v.version)) + 1;
-      }
-
-      // Validiere und normalisiere das Format-Objekt
-      const normalizedFormat = this._normalizeFormatObject(format);
-
-      // Erstelle einen neuen Versionseintrag
-      const newVersion = {
-        text: lyrics,
-        format: normalizedFormat,
-        version: nextVersion,
-        createdAt: new Date(),
-        changes: changes
-      };
-
-      // Füge die neue Version hinzu
-      if (!request.lyricsVersions) {
-        request.lyricsVersions = [];
-      }
-      request.lyricsVersions.push(newVersion);
-
-      // Speichere die Änderungen
-      return await request.save();
-    } catch (error) {
-      throw this._handleError(error);
-    }
-  }
 
   /**
    * Normalisiert und validiert das Format-Objekt
@@ -322,7 +306,7 @@ class MusicRequestService {
    * Sucht Musikanfragen nach verschiedenen Kriterien
    * @param {Object} searchParams - Suchparameter
    * @param {string} searchParams.query - Suchbegriff für Titel oder Beschreibung
-   * @param {Object} searchParams.filters - Zusätzliche Filter (status, genre, mood)
+   * @param {Object} searchParams.filters - Zusätzliche Filter (status, genre, mood, instrumentList, keySignature, targetAudience, vocalStyle, structureNotes)
    * @param {Object} searchParams.pagination - Paginierungsoptionen (page, limit)
    * @param {Object} searchParams.sort - Sortieroptionen (field, order)
    * @returns {Promise<Object>} Gefundene Musikanfragen und Pagination-Informationen
@@ -370,6 +354,31 @@ class MusicRequestService {
         searchQuery.audioUrl = { $exists: true, $ne: '' };
       }
 
+      // Filter by instrumentList (if any instrument in the list is present)
+      if (filters.instrumentList && Array.isArray(filters.instrumentList) && filters.instrumentList.length > 0) {
+        searchQuery.instrumentList = { $in: filters.instrumentList };
+      }
+
+      // Filter by keySignature
+      if (filters.keySignature) {
+        searchQuery.keySignature = filters.keySignature;
+      }
+
+      // Filter by targetAudience (partial match)
+      if (filters.targetAudience) {
+        searchQuery.targetAudience = { $regex: filters.targetAudience, $options: 'i' };
+      }
+
+      // Filter by vocalStyle (partial match)
+      if (filters.vocalStyle) {
+        searchQuery.vocalStyle = { $regex: filters.vocalStyle, $options: 'i' };
+      }
+
+      // Filter by structureNotes (partial match)
+      if (filters.structureNotes) {
+        searchQuery.structureNotes = { $regex: filters.structureNotes, $options: 'i' };
+      }
+
       // Date range filter
       if (filters.startDate || filters.endDate) {
         searchQuery.createdAt = {};
@@ -383,7 +392,7 @@ class MusicRequestService {
 
       // Build sort object
       const sortObj = {};
-      const validSortFields = ['createdAt', 'title', 'genre', 'mood', 'tempo'];
+      const validSortFields = ['createdAt', 'title', 'genre', 'mood', 'tempo', 'keySignature'];
 
       if (validSortFields.includes(sortField)) {
         sortObj[sortField] = sortOrder === 'asc' ? 1 : -1;

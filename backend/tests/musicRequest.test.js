@@ -43,6 +43,33 @@ describe('Music Request API', () => {
       expect(res.body.data).toHaveProperty('status', 'received');
     });
 
+    it('should create a music request with extended parameters', async () => {
+      const extendedRequest = {
+        ...sampleRequest,
+        instrumentList: ['guitar', 'piano', 'drums'],
+        referenceTrackUrl: 'https://example.com/reference.mp3',
+        keySignature: 'C minor',
+        targetAudience: 'Young adults',
+        vocalStyle: 'Soft and melodic',
+        structureNotes: 'Verse-Chorus-Verse-Chorus-Bridge-Chorus'
+      };
+
+      const res = await request(app)
+        .post('/api/v1/requests')
+        .send(extendedRequest);
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('title', extendedRequest.title);
+      expect(res.body.data).toHaveProperty('instrumentList');
+      expect(res.body.data.instrumentList).toEqual(extendedRequest.instrumentList);
+      expect(res.body.data).toHaveProperty('referenceTrackUrl', extendedRequest.referenceTrackUrl);
+      expect(res.body.data).toHaveProperty('keySignature', extendedRequest.keySignature);
+      expect(res.body.data).toHaveProperty('targetAudience', extendedRequest.targetAudience);
+      expect(res.body.data).toHaveProperty('vocalStyle', extendedRequest.vocalStyle);
+      expect(res.body.data).toHaveProperty('structureNotes', extendedRequest.structureNotes);
+    });
+
     it('should validate required fields', async () => {
       const res = await request(app)
         .post('/api/v1/requests')
@@ -59,7 +86,17 @@ describe('Music Request API', () => {
       await MusicRequest.create([
         sampleRequest,
         { ...sampleRequest, title: 'Second Song', genre: 'rock' },
-        { ...sampleRequest, title: 'Third Song', genre: 'jazz', createdAt: new Date('2023-01-01') }
+        { ...sampleRequest, title: 'Third Song', genre: 'jazz', createdAt: new Date('2023-01-01') },
+        { 
+          ...sampleRequest, 
+          title: 'Extended Song', 
+          genre: 'electronic', 
+          instrumentList: ['synthesizer', 'drums', 'bass'],
+          keySignature: 'A minor',
+          targetAudience: 'Young adults',
+          vocalStyle: 'Electronic vocals',
+          structureNotes: 'Intro-Verse-Chorus-Verse-Chorus-Bridge-Chorus-Outro'
+        }
       ]);
     });
 
@@ -71,7 +108,7 @@ describe('Music Request API', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.requests).toHaveLength(2);
-      expect(res.body.data.pagination.total).toBe(3);
+      expect(res.body.data.pagination.total).toBe(4);
     });
 
     it('should filter requests by status', async () => {
@@ -118,10 +155,81 @@ describe('Music Request API', () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.requests).toHaveLength(3);
-      expect(res.body.data.requests[0].title).toBe('Second Song');
-      expect(res.body.data.requests[1].title).toBe('Test Song');
-      expect(res.body.data.requests[2].title).toBe('Third Song');
+      expect(res.body.data.requests).toHaveLength(4);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+      expect(res.body.data.requests[1].title).toBe('Second Song');
+      expect(res.body.data.requests[2].title).toBe('Test Song');
+      expect(res.body.data.requests[3].title).toBe('Third Song');
+    });
+
+    it('should filter requests by instrumentList', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ instrumentList: ['synthesizer'] });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+    });
+
+    it('should filter requests by keySignature', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ keySignature: 'A minor' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+    });
+
+    it('should filter requests by targetAudience', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ targetAudience: 'Young' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+    });
+
+    it('should filter requests by vocalStyle', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ vocalStyle: 'Electronic' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+    });
+
+    it('should filter requests by structureNotes', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ structureNotes: 'Bridge' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+    });
+
+    it('should sort requests by keySignature', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ 
+          sortBy: 'keySignature',
+          sortOrder: 'asc'
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(4);
+      // The request with keySignature 'A minor' should be first in ascending order
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
     });
   });
 
@@ -171,6 +279,32 @@ describe('Music Request API', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.data).toHaveProperty('title', updates.title);
       expect(res.body.data).toHaveProperty('tempo', updates.tempo);
+    });
+
+    it('should update a music request with extended parameters', async () => {
+      const updates = {
+        title: 'Extended Update',
+        instrumentList: ['violin', 'cello', 'piano'],
+        referenceTrackUrl: 'https://example.com/updated-reference.mp3',
+        keySignature: 'D minor',
+        targetAudience: 'Classical music enthusiasts',
+        vocalStyle: 'Operatic',
+        structureNotes: 'Sonata form with development section'
+      };
+
+      const res = await request(app)
+        .put(`/api/v1/requests/${createdRequest._id}`)
+        .send(updates);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data).toHaveProperty('title', updates.title);
+      expect(res.body.data).toHaveProperty('instrumentList');
+      expect(res.body.data.instrumentList).toEqual(updates.instrumentList);
+      expect(res.body.data).toHaveProperty('referenceTrackUrl', updates.referenceTrackUrl);
+      expect(res.body.data).toHaveProperty('keySignature', updates.keySignature);
+      expect(res.body.data).toHaveProperty('targetAudience', updates.targetAudience);
+      expect(res.body.data).toHaveProperty('vocalStyle', updates.vocalStyle);
+      expect(res.body.data).toHaveProperty('structureNotes', updates.structureNotes);
     });
   });
 
@@ -301,7 +435,17 @@ describe('Music Request API', () => {
         sampleRequest,
         { ...sampleRequest, title: 'Rock Song', genre: 'rock', description: 'A rock song' },
         { ...sampleRequest, title: 'Jazz Song', genre: 'jazz', mood: 'calm' },
-        { ...sampleRequest, title: 'Pop Hit', genre: 'pop', lyrics: '', status: 'writing' }
+        { ...sampleRequest, title: 'Pop Hit', genre: 'pop', lyrics: '', status: 'writing' },
+        { 
+          ...sampleRequest, 
+          title: 'Extended Song', 
+          genre: 'electronic', 
+          instrumentList: ['synthesizer', 'drums', 'bass'],
+          keySignature: 'C minor',
+          targetAudience: 'Young adults',
+          vocalStyle: 'Electronic vocals',
+          structureNotes: 'Intro-Verse-Chorus-Verse-Chorus-Bridge-Chorus-Outro'
+        }
       ]);
     });
 
@@ -351,11 +495,84 @@ describe('Music Request API', () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.requests).toHaveLength(4);
-      expect(res.body.data.requests[0].title).toBe('Jazz Song');
-      expect(res.body.data.requests[1].title).toBe('Pop Hit');
-      expect(res.body.data.requests[2].title).toBe('Rock Song');
-      expect(res.body.data.requests[3].title).toBe('Test Song');
+      expect(res.body.data.requests).toHaveLength(5);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+      expect(res.body.data.requests[1].title).toBe('Jazz Song');
+      expect(res.body.data.requests[2].title).toBe('Pop Hit');
+      expect(res.body.data.requests[3].title).toBe('Rock Song');
+      expect(res.body.data.requests[4].title).toBe('Test Song');
+    });
+
+    it('should filter by extended parameters', async () => {
+      // Test filtering by instrumentList
+      let res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ 
+          filters: {
+            instrumentList: ['synthesizer']
+          }
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+
+      // Test filtering by keySignature
+      res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ 
+          filters: {
+            keySignature: 'C minor'
+          }
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+
+      // Test filtering by targetAudience (partial match)
+      res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ 
+          filters: {
+            targetAudience: 'Young'
+          }
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+
+      // Test filtering by vocalStyle (partial match)
+      res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ 
+          filters: {
+            vocalStyle: 'Electronic'
+          }
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
+
+      // Test filtering by structureNotes (partial match)
+      res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ 
+          filters: {
+            structureNotes: 'Bridge'
+          }
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Extended Song');
     });
   });
 
