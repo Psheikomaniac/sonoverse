@@ -2,6 +2,8 @@
  * Controller für Status-Management-Operationen
  */
 
+const notificationService = require('../services/notificationService');
+
 class StatusController {
   /**
    * Aktualisiert den Status einer Musikanfrage und protokolliert die Änderung
@@ -29,6 +31,14 @@ class StatusController {
 
       // Speichere die Änderungen
       await request.save();
+
+      // Sende eine Benachrichtigung über die Statusänderung
+      await notificationService.sendStatusChangeNotification(
+        request,
+        oldStatus,
+        status,
+        notes
+      );
 
       res.json({
         success: true,
