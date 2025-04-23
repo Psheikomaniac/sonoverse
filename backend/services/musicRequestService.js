@@ -227,6 +227,99 @@ class MusicRequestService {
   }
 
   /**
+   * Aktualisiert den Songtext einer Musikanfrage mit Versionierung und Formatierung
+   * @param {string} id - Die ID der Musikanfrage
+   * @param {string} lyrics - Der neue Songtext
+   * @param {Object} format - Formatierungsoptionen für den Songtext
+   * @param {string} changes - Optionale Beschreibung der Änderungen
+   * @returns {Promise<Object>} Die aktualisierte Musikanfrage
+   */
+  async updateLyrics(id, lyrics, format = {}, changes = '') {
+    try {
+      const request = await MusicRequest.findById(id);
+      if (!request) {
+        const error = new Error('Music request not found');
+        error.code = 'REQUEST_NOT_FOUND';
+        throw error;
+      }
+
+      // Bestimme die nächste Versionsnummer
+      let nextVersion = 1;
+      if (request.lyricsVersions && request.lyricsVersions.length > 0) {
+        nextVersion = Math.max(...request.lyricsVersions.map(v => v.version)) + 1;
+      }
+
+      // Validiere und normalisiere das Format-Objekt
+      const normalizedFormat = this._normalizeFormatObject(format);
+
+      // Erstelle einen neuen Versionseintrag
+      const newVersion = {
+        text: lyrics,
+        format: normalizedFormat,
+        version: nextVersion,
+        createdAt: new Date(),
+        changes: changes
+      };
+
+      // Füge die neue Version hinzu
+      if (!request.lyricsVersions) {
+        request.lyricsVersions = [];
+      }
+      request.lyricsVersions.push(newVersion);
+
+      // Speichere die Änderungen
+      return await request.save();
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
+   * Normalisiert und validiert das Format-Objekt
+   * @private
+   * @param {Object} format - Das zu normalisierende Format-Objekt
+   * @returns {Object} Das normalisierte Format-Objekt
+   */
+  _normalizeFormatObject(format) {
+    // Erstelle ein Basis-Format-Objekt mit Standardwerten
+    const normalizedFormat = {
+      structure: [],
+      styles: []
+    };
+
+    // Wenn kein Format-Objekt übergeben wurde, gib das Standard-Objekt zurück
+    if (!format) return normalizedFormat;
+
+    // Füge Struktur-Informationen hinzu, falls vorhanden
+    if (format.structure && Array.isArray(format.structure)) {
+      // Validiere jedes Struktur-Element
+      normalizedFormat.structure = format.structure
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          type: item.type || 'verse', // Standard: verse
+          startLine: parseInt(item.startLine) || 0,
+          endLine: parseInt(item.endLine) || 0,
+          label: item.label || ''
+        }));
+    }
+
+    // Füge Stil-Informationen hinzu, falls vorhanden
+    if (format.styles && Array.isArray(format.styles)) {
+      // Validiere jedes Stil-Element
+      normalizedFormat.styles = format.styles
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({
+          type: item.type || 'normal', // Standard: normal
+          startPos: parseInt(item.startPos) || 0,
+          endPos: parseInt(item.endPos) || 0,
+          line: parseInt(item.line) || 0
+        }));
+    }
+
+    return normalizedFormat;
+  }
+
+  /**
    * Sucht Musikanfragen nach verschiedenen Kriterien
    * @param {Object} searchParams - Suchparameter
    * @param {string} searchParams.query - Suchbegriff für Titel oder Beschreibung

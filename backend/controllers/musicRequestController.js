@@ -152,25 +152,23 @@ class MusicRequestController {
   // PATCH /api/v1/requests/:id/lyrics
   async updateLyrics(req, res, next) {
     try {
-      const { lyrics } = req.body;
+      const { lyrics, format, changes } = req.body;
 
-      if (!lyrics && lyrics !== '') {
-        return res.status(400).json({
-          success: false,
-          error: {
-            message: 'Lyrics are required',
-            code: 'VALIDATION_ERROR'
-          }
-        });
-      }
+      // Validation is now handled by validateLyrics middleware
 
-      const request = await musicRequestService.updateLyrics(req.params.id, lyrics);
+      const request = await musicRequestService.updateLyrics(req.params.id, lyrics, format, changes);
       res.json({
         success: true,
         data: {
           id: request._id,
           lyrics: request.lyrics,
-          updatedAt: request.updatedAt
+          format: request.lyricsFormat,
+          version: request.lyricsVersion,
+          updatedAt: request.updatedAt,
+          // Include the latest version details
+          latestVersion: request.lyricsVersions && request.lyricsVersions.length > 0 
+            ? request.lyricsVersions[request.lyricsVersions.length - 1] 
+            : null
         }
       });
     } catch (error) {
