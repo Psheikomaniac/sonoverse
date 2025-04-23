@@ -58,8 +58,8 @@ describe('Music Request API', () => {
     beforeEach(async () => {
       await MusicRequest.create([
         sampleRequest,
-        { ...sampleRequest, title: 'Second Song' },
-        { ...sampleRequest, title: 'Third Song' }
+        { ...sampleRequest, title: 'Second Song', genre: 'rock' },
+        { ...sampleRequest, title: 'Third Song', genre: 'jazz', createdAt: new Date('2023-01-01') }
       ]);
     });
 
@@ -81,6 +81,47 @@ describe('Music Request API', () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body.data.requests.every(req => req.status === 'pending')).toBe(true);
+    });
+
+    it('should filter requests by genre', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ genre: 'rock' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].genre).toBe('rock');
+    });
+
+    it('should filter requests by date range', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ 
+          startDate: '2023-01-01', 
+          endDate: '2023-01-31' 
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Third Song');
+    });
+
+    it('should sort requests by specified field', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests')
+        .query({ 
+          sortBy: 'title',
+          sortOrder: 'asc'
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(3);
+      expect(res.body.data.requests[0].title).toBe('Second Song');
+      expect(res.body.data.requests[1].title).toBe('Test Song');
+      expect(res.body.data.requests[2].title).toBe('Third Song');
     });
   });
 
@@ -175,6 +216,117 @@ describe('Music Request API', () => {
 
       const deletedRequest = await MusicRequest.findById(createdRequest._id);
       expect(deletedRequest).toBeNull();
+    });
+  });
+
+  describe('GET /api/v1/requests/search', () => {
+    beforeEach(async () => {
+      await MusicRequest.create([
+        sampleRequest,
+        { ...sampleRequest, title: 'Rock Song', genre: 'rock', description: 'A rock song' },
+        { ...sampleRequest, title: 'Jazz Song', genre: 'jazz', mood: 'calm' },
+        { ...sampleRequest, title: 'Pop Hit', genre: 'pop', lyrics: '', status: 'in_progress' }
+      ]);
+    });
+
+    it('should search requests by query string', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ query: 'rock' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Rock Song');
+    });
+
+    it('should filter search results by multiple criteria', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ 
+          genre: 'pop',
+          status: 'in_progress'
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(1);
+      expect(res.body.data.requests[0].title).toBe('Pop Hit');
+    });
+
+    it('should filter by hasLyrics flag', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ hasLyrics: 'true' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests.every(req => req.lyrics && req.lyrics.length > 0)).toBe(true);
+      expect(res.body.data.requests).toHaveLength(3); // All except 'Pop Hit'
+    });
+
+    it('should sort search results', async () => {
+      const res = await request(app)
+        .get('/api/v1/requests/search')
+        .query({ 
+          sortField: 'title',
+          sortOrder: 'asc'
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.requests).toHaveLength(4);
+      expect(res.body.data.requests[0].title).toBe('Jazz Song');
+      expect(res.body.data.requests[1].title).toBe('Pop Hit');
+      expect(res.body.data.requests[2].title).toBe('Rock Song');
+      expect(res.body.data.requests[3].title).toBe('Test Song');
+    });
+  });
+
+  describe('PATCH /api/v1/requests/:id/lyrics', () => {
+    let createdRequest;
+
+    beforeEach(async () => {
+      createdRequest = await MusicRequest.create(sampleRequest);
+    });
+
+    it('should update request lyrics', async () => {
+      const newLyrics = 'Updated lyrics for testing';
+
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ lyrics: newLyrics });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('lyrics', newLyrics);
+
+      // Verify in database
+      const updatedRequest = await MusicRequest.findById(createdRequest._id);
+      expect(updatedRequest.lyrics).toBe(newLyrics);
+    });
+
+    it('should validate lyrics are provided', async () => {
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({});
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should validate lyrics length', async () => {
+      // Create lyrics that exceed the 5000 character limit
+      const longLyrics = 'a'.repeat(5001);
+
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ lyrics: longLyrics });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
   });
 });

@@ -4,8 +4,72 @@ class MusicRequestController {
   // GET /api/v1/requests
   async getAllRequests(req, res, next) {
     try {
-      const { page = 1, limit = 10, status } = req.query;
-      const result = await musicRequestService.getAllRequests({ page, limit, status });
+      const { 
+        page = 1, 
+        limit = 10, 
+        status, 
+        genre, 
+        startDate, 
+        endDate,
+        sortBy,
+        sortOrder
+      } = req.query;
+
+      const result = await musicRequestService.getAllRequests({ 
+        page, 
+        limit, 
+        status, 
+        genre, 
+        startDate, 
+        endDate,
+        sortBy,
+        sortOrder
+      });
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/v1/requests/search
+  async searchRequests(req, res, next) {
+    try {
+      const { 
+        query, 
+        status, 
+        genre, 
+        mood, 
+        hasLyrics, 
+        hasAudio, 
+        startDate, 
+        endDate,
+        page = 1,
+        limit = 10,
+        sortField = 'createdAt',
+        sortOrder = 'desc'
+      } = req.query;
+
+      const filters = {
+        status,
+        genre,
+        mood,
+        hasLyrics: hasLyrics === 'true',
+        hasAudio: hasAudio === 'true',
+        startDate,
+        endDate
+      };
+
+      const result = await musicRequestService.searchRequests({
+        query,
+        filters,
+        pagination: { page, limit },
+        sort: { field: sortField, order: sortOrder }
+      });
+
       res.json({
         success: true,
         data: result
@@ -79,6 +143,35 @@ class MusicRequestController {
       res.json({
         success: true,
         data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /api/v1/requests/:id/lyrics
+  async updateLyrics(req, res, next) {
+    try {
+      const { lyrics } = req.body;
+
+      if (!lyrics && lyrics !== '') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Lyrics are required',
+            code: 'VALIDATION_ERROR'
+          }
+        });
+      }
+
+      const request = await musicRequestService.updateLyrics(req.params.id, lyrics);
+      res.json({
+        success: true,
+        data: {
+          id: request._id,
+          lyrics: request.lyrics,
+          updatedAt: request.updatedAt
+        }
       });
     } catch (error) {
       next(error);
