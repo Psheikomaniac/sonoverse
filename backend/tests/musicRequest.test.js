@@ -290,7 +290,7 @@ describe('Music Request API', () => {
       createdRequest = await MusicRequest.create(sampleRequest);
     });
 
-    it('should update request lyrics', async () => {
+    it('should update request lyrics and create version 1', async () => {
       const newLyrics = 'Updated lyrics for testing';
 
       const res = await request(app)
@@ -300,10 +300,79 @@ describe('Music Request API', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveProperty('lyrics', newLyrics);
+      expect(res.body.data).toHaveProperty('version', 1);
+      expect(res.body.data).toHaveProperty('latestVersion');
+      expect(res.body.data.latestVersion).toHaveProperty('text', newLyrics);
+      expect(res.body.data.latestVersion).toHaveProperty('version', 1);
 
       // Verify in database
       const updatedRequest = await MusicRequest.findById(createdRequest._id);
       expect(updatedRequest.lyrics).toBe(newLyrics);
+      expect(updatedRequest.lyricsVersions).toHaveLength(1);
+      expect(updatedRequest.lyricsVersions[0].text).toBe(newLyrics);
+      expect(updatedRequest.lyricsVersions[0].version).toBe(1);
+    });
+
+    it('should increment version number on subsequent updates', async () => {
+      // First update
+      const firstLyrics = 'First version of lyrics';
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ lyrics: firstLyrics });
+
+      // Second update with changes description
+      const secondLyrics = 'Second version of lyrics';
+      const changes = 'Fixed typos and improved chorus';
+
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ lyrics: secondLyrics, changes });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('lyrics', secondLyrics);
+      expect(res.body.data).toHaveProperty('version', 2);
+      expect(res.body.data.latestVersion).toHaveProperty('text', secondLyrics);
+      expect(res.body.data.latestVersion).toHaveProperty('version', 2);
+      expect(res.body.data.latestVersion).toHaveProperty('changes', changes);
+
+      // Verify in database
+      const updatedRequest = await MusicRequest.findById(createdRequest._id);
+      expect(updatedRequest.lyrics).toBe(secondLyrics);
+      expect(updatedRequest.lyricsVersions).toHaveLength(2);
+      expect(updatedRequest.lyricsVersions[1].text).toBe(secondLyrics);
+      expect(updatedRequest.lyricsVersions[1].version).toBe(2);
+      expect(updatedRequest.lyricsVersions[1].changes).toBe(changes);
+    });
+
+    it('should maintain version history', async () => {
+      // Create multiple versions
+      const versions = [
+        'First version of lyrics',
+        'Second version with some changes',
+        'Third version with more improvements'
+      ];
+
+      for (const lyrics of versions) {
+        await request(app)
+          .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+          .send({ lyrics });
+      }
+
+      // Verify all versions are stored
+      const updatedRequest = await MusicRequest.findById(createdRequest._id);
+      expect(updatedRequest.lyricsVersions).toHaveLength(3);
+
+      // Verify the lyrics virtual returns the latest version
+      expect(updatedRequest.lyrics).toBe(versions[2]);
+
+      // Verify version numbers are sequential
+      expect(updatedRequest.lyricsVersions[0].version).toBe(1);
+      expect(updatedRequest.lyricsVersions[1].version).toBe(2);
+      expect(updatedRequest.lyricsVersions[2].version).toBe(3);
+
+      // Verify the lyricsVersion virtual returns the latest version number
+      expect(updatedRequest.lyricsVersion).toBe(3);
     });
 
     it('should validate lyrics are provided', async () => {
