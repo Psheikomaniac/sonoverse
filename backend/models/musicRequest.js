@@ -65,9 +65,24 @@ const musicRequestSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['pending', 'in_progress', 'completed'],
-    default: 'pending'
+    enum: ['received', 'writing', 'recording', 'mixing', 'completed'],
+    default: 'received'
   },
+  statusHistory: [{
+    status: {
+      type: String,
+      enum: ['received', 'writing', 'recording', 'mixing', 'completed'],
+      required: true
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    notes: {
+      type: String,
+      trim: true
+    }
+  }],
   audioUrl: {
     type: String,
     trim: true

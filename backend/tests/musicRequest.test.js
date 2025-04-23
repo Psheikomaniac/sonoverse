@@ -40,7 +40,7 @@ describe('Music Request API', () => {
       expect(res.statusCode).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveProperty('title', sampleRequest.title);
-      expect(res.body.data).toHaveProperty('status', 'pending');
+      expect(res.body.data).toHaveProperty('status', 'received');
     });
 
     it('should validate required fields', async () => {
@@ -77,10 +77,10 @@ describe('Music Request API', () => {
     it('should filter requests by status', async () => {
       const res = await request(app)
         .get('/api/v1/requests')
-        .query({ status: 'pending' });
+        .query({ status: 'received' });
 
       expect(res.statusCode).toBe(200);
-      expect(res.body.data.requests.every(req => req.status === 'pending')).toBe(true);
+      expect(res.body.data.requests.every(req => req.status === 'received')).toBe(true);
     });
 
     it('should filter requests by genre', async () => {
@@ -181,13 +181,18 @@ describe('Music Request API', () => {
       createdRequest = await MusicRequest.create(sampleRequest);
     });
 
-    it('should update request status', async () => {
+    it('should update request status and add to history', async () => {
       const res = await request(app)
         .patch(`/api/v1/requests/${createdRequest._id}/status`)
-        .send({ status: 'in_progress' });
+        .send({ status: 'writing', notes: 'Starting the writing process' });
 
       expect(res.statusCode).toBe(200);
-      expect(res.body.data).toHaveProperty('status', 'in_progress');
+      expect(res.body.data).toHaveProperty('status', 'writing');
+      expect(res.body.data).toHaveProperty('statusHistory');
+      expect(res.body.data.statusHistory).toHaveLength(1);
+      expect(res.body.data.statusHistory[0]).toHaveProperty('status', 'writing');
+      expect(res.body.data.statusHistory[0]).toHaveProperty('notes', 'Starting the writing process');
+      expect(res.body.data.statusHistory[0]).toHaveProperty('timestamp');
     });
 
     it('should validate status values', async () => {
@@ -197,6 +202,77 @@ describe('Music Request API', () => {
 
       expect(res.statusCode).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should validate status transitions', async () => {
+      // First update to 'writing'
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/status`)
+        .send({ status: 'writing' });
+
+      // Try to update to 'completed' (invalid transition)
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/status`)
+        .send({ status: 'completed' });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toMatch(/Invalid status transition/);
+    });
+
+    it('should allow valid status transitions', async () => {
+      // Update to 'writing'
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/status`)
+        .send({ status: 'writing' });
+
+      // Update to 'recording' (valid transition)
+      const res = await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/status`)
+        .send({ status: 'recording' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data).toHaveProperty('status', 'recording');
+      expect(res.body.data.statusHistory).toHaveLength(2);
+    });
+  });
+
+  describe('GET /api/v1/requests/:id/status/history', () => {
+    let createdRequest;
+
+    beforeEach(async () => {
+      createdRequest = await MusicRequest.create(sampleRequest);
+
+      // Add some status history
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/status`)
+        .send({ status: 'writing', notes: 'Starting the writing process' });
+
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/status`)
+        .send({ status: 'recording', notes: 'Moving to recording phase' });
+    });
+
+    it('should get status history', async () => {
+      const res = await request(app)
+        .get(`/api/v1/requests/${createdRequest._id}/status/history`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('currentStatus', 'recording');
+      expect(res.body.data).toHaveProperty('statusHistory');
+      expect(res.body.data.statusHistory).toHaveLength(2);
+      expect(res.body.data.statusHistory[0]).toHaveProperty('status', 'writing');
+      expect(res.body.data.statusHistory[1]).toHaveProperty('status', 'recording');
+    });
+
+    it('should return 404 for non-existent request', async () => {
+      const nonExistentId = new mongoose.Types.ObjectId();
+      const res = await request(app)
+        .get(`/api/v1/requests/${nonExistentId}/status/history`);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error.code).toBe('REQUEST_NOT_FOUND');
     });
   });
 
@@ -225,7 +301,7 @@ describe('Music Request API', () => {
         sampleRequest,
         { ...sampleRequest, title: 'Rock Song', genre: 'rock', description: 'A rock song' },
         { ...sampleRequest, title: 'Jazz Song', genre: 'jazz', mood: 'calm' },
-        { ...sampleRequest, title: 'Pop Hit', genre: 'pop', lyrics: '', status: 'in_progress' }
+        { ...sampleRequest, title: 'Pop Hit', genre: 'pop', lyrics: '', status: 'writing' }
       ]);
     });
 
@@ -245,7 +321,7 @@ describe('Music Request API', () => {
         .get('/api/v1/requests/search')
         .query({ 
           genre: 'pop',
-          status: 'in_progress'
+          status: 'writing'
         });
 
       expect(res.statusCode).toBe(200);
