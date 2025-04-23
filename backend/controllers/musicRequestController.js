@@ -152,16 +152,17 @@ class MusicRequestController {
   // PATCH /api/v1/requests/:id/lyrics
   async updateLyrics(req, res, next) {
     try {
-      const { lyrics, changes } = req.body;
+      const { lyrics, format, changes } = req.body;
 
       // Validation is now handled by validateLyrics middleware
 
-      const request = await musicRequestService.updateLyrics(req.params.id, lyrics, changes);
+      const request = await musicRequestService.updateLyrics(req.params.id, lyrics, format, changes);
       res.json({
         success: true,
         data: {
           id: request._id,
           lyrics: request.lyrics,
+          format: request.lyricsFormat,
           version: request.lyricsVersion,
           updatedAt: request.updatedAt,
           // Include the latest version details

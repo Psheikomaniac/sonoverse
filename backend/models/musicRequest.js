@@ -36,6 +36,20 @@ const musicRequestSchema = new mongoose.Schema({
       trim: true,
       maxLength: [5000, 'Lyrics cannot be more than 5000 characters']
     },
+    format: {
+      type: Object,
+      default: {},
+      // Format-Objekt für Formatierungsoptionen (z.B. bold, italic, headers)
+      // und Strukturierungshilfen (z.B. verse, chorus, bridge)
+      structure: {
+        type: Array,
+        default: []
+      },
+      styles: {
+        type: Array,
+        default: []
+      }
+    },
     createdAt: {
       type: Date,
       default: Date.now
@@ -104,6 +118,15 @@ musicRequestSchema.virtual('lyricsVersion').get(function() {
 
   // Finde die höchste Versionsnummer
   return Math.max(...this.lyricsVersions.map(v => v.version));
+});
+
+// Virtual für die aktuellen Formatierungsoptionen
+musicRequestSchema.virtual('lyricsFormat').get(function() {
+  if (!this.lyricsVersions || this.lyricsVersions.length === 0) return {};
+
+  // Sortiere nach Version absteigend und nimm die erste (neueste)
+  const sortedVersions = [...this.lyricsVersions].sort((a, b) => b.version - a.version);
+  return sortedVersions[0].format || {};
 });
 
 const MusicRequest = mongoose.model('MusicRequest', musicRequestSchema);
