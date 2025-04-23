@@ -175,6 +175,59 @@ class MusicRequestController {
       next(error);
     }
   }
+
+  // GET /api/v1/requests/:id/lyrics/history
+  async getLyricsHistory(req, res, next) {
+    try {
+      const result = await musicRequestService.getLyricsHistory(req.params.id);
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/v1/requests/:id/lyrics/versions/:version
+  async getLyricsVersion(req, res, next) {
+    try {
+      const { id, version } = req.params;
+      const result = await musicRequestService.getLyricsVersion(id, version);
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/v1/requests/:id/lyrics/compare
+  async compareLyricsVersions(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { version1, version2 } = req.query;
+
+      if (!version1 || !version2) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Both version1 and version2 query parameters are required',
+            code: 'VALIDATION_ERROR'
+          }
+        });
+      }
+
+      const result = await musicRequestService.compareLyricsVersions(id, version1, version2);
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new MusicRequestController();

@@ -25,6 +25,15 @@ router.patch('/:id/status', musicRequestController.updateRequestStatus);
 // PATCH /api/v1/requests/:id/lyrics - Songtext einer Musikanfrage aktualisieren
 router.patch('/:id/lyrics', validateLyrics, musicRequestController.updateLyrics);
 
+// GET /api/v1/requests/:id/lyrics/history - Versionsverlauf eines Songtextes abrufen
+router.get('/:id/lyrics/history', musicRequestController.getLyricsHistory);
+
+// GET /api/v1/requests/:id/lyrics/versions/:version - Spezifische Version eines Songtextes abrufen
+router.get('/:id/lyrics/versions/:version', musicRequestController.getLyricsVersion);
+
+// GET /api/v1/requests/:id/lyrics/compare - Verschiedene Versionen eines Songtextes vergleichen
+router.get('/:id/lyrics/compare', musicRequestController.compareLyricsVersions);
+
 // DELETE /api/v1/requests/:id - Musikanfrage löschen
 router.delete('/:id', musicRequestController.deleteRequest);
 

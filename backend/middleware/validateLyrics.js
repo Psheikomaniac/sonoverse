@@ -1,89 +1,120 @@
 /**
- * Middleware zur erweiterten Validierung von Songtexten
- * Validiert Songtexte auf Länge, Format und Struktur
+ * Middleware zur Validierung von Songtexten
+ * Validiert eingehende Songtext-Daten für Musikanfragen
  */
 
 const validateLyrics = (req, res, next) => {
-  const { lyrics } = req.body;
+  const { lyrics, format } = req.body;
   const errors = [];
 
-  // Prüfe, ob Lyrics vorhanden sind
-  if (lyrics === undefined || lyrics === null) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        message: 'Lyrics are required',
-        code: 'VALIDATION_ERROR'
-      }
-    });
+  // Validiere, dass Lyrics vorhanden sind
+  if (lyrics === undefined) {
+    errors.push({ field: 'lyrics', message: 'Lyrics are required' });
+  } else if (lyrics.length > 5000) {
+    errors.push({ field: 'lyrics', message: 'Lyrics cannot be more than 5000 characters' });
   }
 
-  // Validiere Länge
-  if (lyrics.length > 5000) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        message: 'Lyrics cannot be more than 5000 characters',
-        code: 'VALIDATION_ERROR'
-      }
-    });
-  }
-
-  // Validiere Mindestlänge
-  if (lyrics.length < 10) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        message: 'Lyrics must be at least 10 characters',
-        code: 'VALIDATION_ERROR'
-      }
-    });
-  }
-
-  // Validiere Struktur (Prüfe auf Verse/Strophen)
-  const lines = lyrics.split('\n').filter(line => line.trim() !== '');
-  if (lines.length < 2) {
-    return res.status(400).json({
-      success: false,
-      error: {
-        message: 'Lyrics must have at least 2 lines',
-        code: 'VALIDATION_ERROR'
-      }
-    });
-  }
-
-  // Validiere Format (Prüfe auf übermäßige Wiederholungen)
-  const uniqueLines = new Set(lines.map(line => line.trim().toLowerCase()));
-  if (uniqueLines.size < lines.length * 0.3) { // Mindestens 30% der Zeilen sollten einzigartig sein
-    return res.status(400).json({
-      success: false,
-      error: {
-        message: 'Lyrics have too many repetitive lines',
-        code: 'VALIDATION_ERROR'
-      }
-    });
-  }
-
-  // Validiere auf unerwünschte Zeichen oder Muster
-  const forbiddenPatterns = [
-    /^\s*$/,  // Leere Zeilen wurden bereits oben gefiltert
-    /^[^a-zA-Z0-9äöüÄÖÜß\s,.!?'"()\-:;]+$/  // Zeilen, die nur aus Sonderzeichen bestehen
-  ];
-
-  for (const line of lines) {
-    for (const pattern of forbiddenPatterns) {
-      if (pattern.test(line)) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            message: 'Lyrics contain invalid characters or patterns',
-            code: 'VALIDATION_ERROR'
+  // Validiere Format-Objekt, falls vorhanden
+  if (format) {
+    // Validiere Struktur-Array
+    if (format.structure && !Array.isArray(format.structure)) {
+      errors.push({ field: 'format.structure', message: 'Structure must be an array' });
+    } else if (format.structure && Array.isArray(format.structure)) {
+      // Validiere jedes Struktur-Element
+      format.structure.forEach((item, index) => {
+        if (!item || typeof item !== 'object') {
+          errors.push({ field: `format.structure[${index}]`, message: 'Structure item must be an object' });
+        } else {
+          // Validiere Typ
+          if (!item.type) {
+            errors.push({ field: `format.structure[${index}].type`, message: 'Structure item type is required' });
+          } else if (!['verse', 'chorus', 'bridge', 'intro', 'outro', 'pre-chorus', 'hook'].includes(item.type)) {
+            errors.push({ 
+              field: `format.structure[${index}].type`, 
+              message: 'Structure item type must be one of: verse, chorus, bridge, intro, outro, pre-chorus, hook' 
+            });
           }
-        });
-      }
+          
+          // Validiere Start- und Endzeile
+          if (item.startLine === undefined || item.startLine === null) {
+            errors.push({ field: `format.structure[${index}].startLine`, message: 'Structure item startLine is required' });
+          } else if (isNaN(parseInt(item.startLine))) {
+            errors.push({ field: `format.structure[${index}].startLine`, message: 'Structure item startLine must be a number' });
+          }
+          
+          if (item.endLine === undefined || item.endLine === null) {
+            errors.push({ field: `format.structure[${index}].endLine`, message: 'Structure item endLine is required' });
+          } else if (isNaN(parseInt(item.endLine))) {
+            errors.push({ field: `format.structure[${index}].endLine`, message: 'Structure item endLine must be a number' });
+          } else if (parseInt(item.endLine) < parseInt(item.startLine)) {
+            errors.push({ 
+              field: `format.structure[${index}].endLine`, 
+              message: 'Structure item endLine must be greater than or equal to startLine' 
+            });
+          }
+        }
+      });
+    }
+
+    // Validiere Styles-Array
+    if (format.styles && !Array.isArray(format.styles)) {
+      errors.push({ field: 'format.styles', message: 'Styles must be an array' });
+    } else if (format.styles && Array.isArray(format.styles)) {
+      // Validiere jedes Style-Element
+      format.styles.forEach((item, index) => {
+        if (!item || typeof item !== 'object') {
+          errors.push({ field: `format.styles[${index}]`, message: 'Style item must be an object' });
+        } else {
+          // Validiere Typ
+          if (!item.type) {
+            errors.push({ field: `format.styles[${index}].type`, message: 'Style item type is required' });
+          } else if (!['bold', 'italic', 'underline', 'normal', 'header'].includes(item.type)) {
+            errors.push({ 
+              field: `format.styles[${index}].type`, 
+              message: 'Style item type must be one of: bold, italic, underline, normal, header' 
+            });
+          }
+          
+          // Validiere Start- und Endposition
+          if (item.startPos === undefined || item.startPos === null) {
+            errors.push({ field: `format.styles[${index}].startPos`, message: 'Style item startPos is required' });
+          } else if (isNaN(parseInt(item.startPos))) {
+            errors.push({ field: `format.styles[${index}].startPos`, message: 'Style item startPos must be a number' });
+          }
+          
+          if (item.endPos === undefined || item.endPos === null) {
+            errors.push({ field: `format.styles[${index}].endPos`, message: 'Style item endPos is required' });
+          } else if (isNaN(parseInt(item.endPos))) {
+            errors.push({ field: `format.styles[${index}].endPos`, message: 'Style item endPos must be a number' });
+          } else if (parseInt(item.endPos) < parseInt(item.startPos)) {
+            errors.push({ 
+              field: `format.styles[${index}].endPos`, 
+              message: 'Style item endPos must be greater than or equal to startPos' 
+            });
+          }
+          
+          // Validiere Zeile
+          if (item.line === undefined || item.line === null) {
+            errors.push({ field: `format.styles[${index}].line`, message: 'Style item line is required' });
+          } else if (isNaN(parseInt(item.line))) {
+            errors.push({ field: `format.styles[${index}].line`, message: 'Style item line must be a number' });
+          }
+        }
+      });
     }
   }
 
+  // Wenn Fehler gefunden wurden, sende Fehlerantwort
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        message: 'Validation failed',
+        code: 'VALIDATION_ERROR',
+        details: errors
+      }
+    });
+  }
   // Wenn keine Fehler, fahre mit dem nächsten Middleware fort
   next();
 };

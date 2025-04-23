@@ -290,84 +290,36 @@ describe('Music Request API', () => {
       createdRequest = await MusicRequest.create(sampleRequest);
     });
 
-    it('should update request lyrics with default formatting', async () => {
+    it('should update request lyrics with formatting', async () => {
       const newLyrics = 'Updated lyrics for testing';
+      const format = {
+        structure: [
+          { type: 'verse', startLine: 0, endLine: 0, label: 'Verse 1' }
+        ],
+        styles: [
+          { type: 'bold', startPos: 0, endPos: 7, line: 0 }
+        ]
+      };
+      const changes = 'Updated the lyrics with formatting';
 
       const res = await request(app)
         .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
-        .send({ lyrics: newLyrics });
+        .send({ lyrics: newLyrics, format, changes });
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveProperty('lyrics', newLyrics);
       expect(res.body.data).toHaveProperty('format');
+      expect(res.body.data).toHaveProperty('version');
       expect(res.body.data.format).toHaveProperty('structure');
       expect(res.body.data.format).toHaveProperty('styles');
+      expect(res.body.data.latestVersion).toHaveProperty('changes', changes);
 
       // Verify in database
       const updatedRequest = await MusicRequest.findById(createdRequest._id);
       expect(updatedRequest.lyrics).toBe(newLyrics);
-      expect(updatedRequest.lyricsVersions).toBeDefined();
-      expect(updatedRequest.lyricsVersions.length).toBe(1);
-    });
-
-    it('should update lyrics with structure formatting', async () => {
-      const newLyrics = 'Verse 1\nThis is the first verse\n\nChorus\nThis is the chorus\n\nVerse 2\nThis is the second verse';
-      const format = {
-        structure: [
-          { type: 'verse', startLine: 0, endLine: 1, label: 'Verse 1' },
-          { type: 'chorus', startLine: 3, endLine: 4, label: 'Chorus' },
-          { type: 'verse', startLine: 6, endLine: 7, label: 'Verse 2' }
-        ]
-      };
-
-      const res = await request(app)
-        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
-        .send({ lyrics: newLyrics, format });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toHaveProperty('lyrics', newLyrics);
-      expect(res.body.data).toHaveProperty('format');
-      expect(res.body.data.format).toHaveProperty('structure');
-      expect(res.body.data.format.structure).toHaveLength(3);
-      expect(res.body.data.format.structure[0]).toHaveProperty('type', 'verse');
-      expect(res.body.data.format.structure[1]).toHaveProperty('type', 'chorus');
-
-      // Verify in database
-      const updatedRequest = await MusicRequest.findById(createdRequest._id);
-      expect(updatedRequest.lyricsVersions[0].format.structure).toHaveLength(3);
-      expect(updatedRequest.lyricsVersions[0].format.structure[0].type).toBe('verse');
-      expect(updatedRequest.lyricsVersions[0].format.structure[1].type).toBe('chorus');
-    });
-
-    it('should update lyrics with style formatting', async () => {
-      const newLyrics = 'This is a line with bold and italic text';
-      const format = {
-        styles: [
-          { type: 'bold', startPos: 10, endPos: 14, line: 0 },
-          { type: 'italic', startPos: 19, endPos: 25, line: 0 }
-        ]
-      };
-
-      const res = await request(app)
-        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
-        .send({ lyrics: newLyrics, format });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toHaveProperty('lyrics', newLyrics);
-      expect(res.body.data).toHaveProperty('format');
-      expect(res.body.data.format).toHaveProperty('styles');
-      expect(res.body.data.format.styles).toHaveLength(2);
-      expect(res.body.data.format.styles[0]).toHaveProperty('type', 'bold');
-      expect(res.body.data.format.styles[1]).toHaveProperty('type', 'italic');
-
-      // Verify in database
-      const updatedRequest = await MusicRequest.findById(createdRequest._id);
-      expect(updatedRequest.lyricsVersions[0].format.styles).toHaveLength(2);
-      expect(updatedRequest.lyricsVersions[0].format.styles[0].type).toBe('bold');
-      expect(updatedRequest.lyricsVersions[0].format.styles[1].type).toBe('italic');
+      expect(updatedRequest.lyricsVersions).toHaveLength(1);
+      expect(updatedRequest.lyricsVersions[0].text).toBe(newLyrics);
     });
 
     it('should validate lyrics are provided', async () => {
@@ -447,6 +399,197 @@ describe('Music Request API', () => {
       expect(res.body.success).toBe(false);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
       expect(res.body.error.message).toContain('invalid characters or patterns');
+    });
+  });
+
+  describe('GET /api/v1/requests/:id/lyrics/history', () => {
+    let createdRequest;
+
+    beforeEach(async () => {
+      // Create a request with multiple lyrics versions
+      createdRequest = await MusicRequest.create(sampleRequest);
+
+      // Add first version
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ 
+          lyrics: 'First version of lyrics',
+          changes: 'Initial lyrics'
+        });
+
+      // Add second version
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ 
+          lyrics: 'Second version of lyrics',
+          changes: 'Updated lyrics'
+        });
+    });
+
+    it('should get lyrics version history', async () => {
+      const res = await request(app)
+        .get(`/api/v1/requests/${createdRequest._id}/lyrics/history`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('versions');
+      expect(res.body.data.versions).toHaveLength(2);
+      expect(res.body.data.versions[0].version).toBe(2); // Latest version first
+      expect(res.body.data.versions[1].version).toBe(1);
+      expect(res.body.data.versions[0].text).toBe('Second version of lyrics');
+      expect(res.body.data.versions[1].text).toBe('First version of lyrics');
+      expect(res.body.data.versions[0].changes).toBe('Updated lyrics');
+      expect(res.body.data.versions[1].changes).toBe('Initial lyrics');
+    });
+
+    it('should return empty array for request with no lyrics versions', async () => {
+      // Create a new request without lyrics versions
+      const newRequest = await MusicRequest.create({
+        title: 'No Lyrics',
+        genre: 'pop',
+        mood: 'happy',
+        tempo: 120
+      });
+
+      const res = await request(app)
+        .get(`/api/v1/requests/${newRequest._id}/lyrics/history`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('versions');
+      expect(res.body.data.versions).toHaveLength(0);
+    });
+
+    it('should return 404 for non-existent request', async () => {
+      const nonExistentId = new mongoose.Types.ObjectId();
+      const res = await request(app)
+        .get(`/api/v1/requests/${nonExistentId}/lyrics/history`);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error.code).toBe('REQUEST_NOT_FOUND');
+    });
+  });
+
+  describe('GET /api/v1/requests/:id/lyrics/versions/:version', () => {
+    let createdRequest;
+
+    beforeEach(async () => {
+      // Create a request with multiple lyrics versions
+      createdRequest = await MusicRequest.create(sampleRequest);
+
+      // Add first version
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ 
+          lyrics: 'First version of lyrics',
+          changes: 'Initial lyrics'
+        });
+
+      // Add second version
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ 
+          lyrics: 'Second version of lyrics',
+          changes: 'Updated lyrics'
+        });
+    });
+
+    it('should get a specific lyrics version', async () => {
+      const res = await request(app)
+        .get(`/api/v1/requests/${createdRequest._id}/lyrics/versions/1`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('requestedVersion');
+      expect(res.body.data.requestedVersion.version).toBe(1);
+      expect(res.body.data.requestedVersion.text).toBe('First version of lyrics');
+      expect(res.body.data.requestedVersion.changes).toBe('Initial lyrics');
+    });
+
+    it('should return 404 for non-existent version', async () => {
+      const res = await request(app)
+        .get(`/api/v1/requests/${createdRequest._id}/lyrics/versions/999`);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error.code).toBe('VERSION_NOT_FOUND');
+    });
+
+    it('should return 404 for non-existent request', async () => {
+      const nonExistentId = new mongoose.Types.ObjectId();
+      const res = await request(app)
+        .get(`/api/v1/requests/${nonExistentId}/lyrics/versions/1`);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error.code).toBe('REQUEST_NOT_FOUND');
+    });
+  });
+
+  describe('GET /api/v1/requests/:id/lyrics/compare', () => {
+    let createdRequest;
+
+    beforeEach(async () => {
+      // Create a request with multiple lyrics versions
+      createdRequest = await MusicRequest.create(sampleRequest);
+
+      // Add first version
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ 
+          lyrics: 'First version of lyrics',
+          changes: 'Initial lyrics'
+        });
+
+      // Add second version
+      await request(app)
+        .patch(`/api/v1/requests/${createdRequest._id}/lyrics`)
+        .send({ 
+          lyrics: 'Second version of lyrics',
+          changes: 'Updated lyrics'
+        });
+    });
+
+    it('should compare two lyrics versions', async () => {
+      const res = await request(app)
+        .get(`/api/v1/requests/${createdRequest._id}/lyrics/compare`)
+        .query({ version1: 1, version2: 2 });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('comparison');
+      expect(res.body.data.comparison).toHaveProperty('version1');
+      expect(res.body.data.comparison).toHaveProperty('version2');
+      expect(res.body.data.comparison.version1.version).toBe(1);
+      expect(res.body.data.comparison.version2.version).toBe(2);
+      expect(res.body.data.comparison.version1.text).toBe('First version of lyrics');
+      expect(res.body.data.comparison.version2.text).toBe('Second version of lyrics');
+    });
+
+    it('should validate that both version parameters are provided', async () => {
+      const res = await request(app)
+        .get(`/api/v1/requests/${createdRequest._id}/lyrics/compare`)
+        .query({ version1: 1 }); // Missing version2
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 404 for non-existent version', async () => {
+      const res = await request(app)
+        .get(`/api/v1/requests/${createdRequest._id}/lyrics/compare`)
+        .query({ version1: 1, version2: 999 });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error.code).toBe('VERSION_NOT_FOUND');
+    });
+
+    it('should return 404 for non-existent request', async () => {
+      const nonExistentId = new mongoose.Types.ObjectId();
+      const res = await request(app)
+        .get(`/api/v1/requests/${nonExistentId}/lyrics/compare`)
+        .query({ version1: 1, version2: 2 });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.error.code).toBe('REQUEST_NOT_FOUND');
     });
   });
 });
