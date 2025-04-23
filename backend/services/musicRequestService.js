@@ -322,6 +322,35 @@ class MusicRequestService {
   }
 
   /**
+   * Aktualisiert den Songtext einer Musikanfrage
+   * @param {string} id - Die ID der Musikanfrage
+   * @param {string} lyrics - Der neue Songtext
+   * @returns {Promise<Object>} Die aktualisierte Musikanfrage
+   */
+  async updateLyrics(id, lyrics) {
+    try {
+      const request = await MusicRequest.findById(id);
+      if (!request) {
+        const error = new Error('Music request not found');
+        error.code = 'REQUEST_NOT_FOUND';
+        throw error;
+      }
+
+      // Validate lyrics length
+      if (lyrics.length > 5000) {
+        const error = new Error('Lyrics cannot be more than 5000 characters');
+        error.code = 'VALIDATION_ERROR';
+        throw error;
+      }
+
+      request.lyrics = lyrics;
+      return await request.save();
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
    * Standardisierte Fehlerbehandlung
    * @private
    */
