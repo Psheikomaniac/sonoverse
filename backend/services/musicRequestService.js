@@ -18,17 +18,57 @@ class MusicRequestService {
 
   /**
    * Holt alle Musikanfragen mit Pagination und Filteroptionen
-   * @param {Object} options - Filteroptionen (limit, page, status)
+   * @param {Object} options - Filteroptionen (limit, page, status, genre, startDate, endDate, sortBy, sortOrder)
    * @returns {Promise<Object>} Musikanfragen und Pagination-Informationen
    */
-  async getAllRequests({ limit = 10, page = 1, status = null }) {
+  async getAllRequests({ 
+    limit = 10, 
+    page = 1, 
+    status = null, 
+    genre = null, 
+    startDate = null, 
+    endDate = null,
+    sortBy = 'createdAt',
+    sortOrder = 'desc'
+  }) {
     try {
-      const query = status ? { status } : {};
+      // Build query based on filters
+      const query = {};
+
+      if (status) {
+        query.status = status;
+      }
+
+      if (genre) {
+        query.genre = genre;
+      }
+
+      // Date range filter
+      if (startDate || endDate) {
+        query.createdAt = {};
+        if (startDate) {
+          query.createdAt.$gte = new Date(startDate);
+        }
+        if (endDate) {
+          query.createdAt.$lte = new Date(endDate);
+        }
+      }
+
       const skip = (page - 1) * limit;
+
+      // Build sort object
+      const sort = {};
+      const validSortFields = ['createdAt', 'title', 'genre', 'mood', 'tempo'];
+
+      if (validSortFields.includes(sortBy)) {
+        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      } else {
+        sort.createdAt = -1; // Default sort
+      }
 
       const [requests, total] = await Promise.all([
         MusicRequest.find(query)
-          .sort({ createdAt: -1 })
+          .sort(sort)
           .skip(skip)
           .limit(limit),
         MusicRequest.countDocuments(query)
@@ -181,6 +221,101 @@ class MusicRequestService {
       request.audioUrl = audioUrl;
       request.audioMetadata = metadata;
       return await request.save();
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
+   * Sucht Musikanfragen nach verschiedenen Kriterien
+   * @param {Object} searchParams - Suchparameter
+   * @param {string} searchParams.query - Suchbegriff für Titel oder Beschreibung
+   * @param {Object} searchParams.filters - Zusätzliche Filter (status, genre, mood)
+   * @param {Object} searchParams.pagination - Paginierungsoptionen (page, limit)
+   * @param {Object} searchParams.sort - Sortieroptionen (field, order)
+   * @returns {Promise<Object>} Gefundene Musikanfragen und Pagination-Informationen
+   */
+  async searchRequests({ 
+    query = '', 
+    filters = {}, 
+    pagination = { page: 1, limit: 10 },
+    sort = { field: 'createdAt', order: 'desc' }
+  }) {
+    try {
+      const { page, limit } = pagination;
+      const { field: sortField = 'createdAt', order: sortOrder = 'desc' } = sort;
+      const skip = (page - 1) * limit;
+
+      // Build search query
+      const searchQuery = {};
+
+      // Text search in title and description
+      if (query && query.trim() !== '') {
+        searchQuery.$or = [
+          { title: { $regex: query, $options: 'i' } },
+          { description: { $regex: query, $options: 'i' } }
+        ];
+      }
+
+      // Apply filters
+      if (filters.status) {
+        searchQuery.status = filters.status;
+      }
+
+      if (filters.genre) {
+        searchQuery.genre = filters.genre;
+      }
+
+      if (filters.mood) {
+        searchQuery.mood = filters.mood;
+      }
+
+      if (filters.hasLyrics) {
+        searchQuery.lyrics = { $exists: true, $ne: '' };
+      }
+
+      if (filters.hasAudio) {
+        searchQuery.audioUrl = { $exists: true, $ne: '' };
+      }
+
+      // Date range filter
+      if (filters.startDate || filters.endDate) {
+        searchQuery.createdAt = {};
+        if (filters.startDate) {
+          searchQuery.createdAt.$gte = new Date(filters.startDate);
+        }
+        if (filters.endDate) {
+          searchQuery.createdAt.$lte = new Date(filters.endDate);
+        }
+      }
+
+      // Build sort object
+      const sortObj = {};
+      const validSortFields = ['createdAt', 'title', 'genre', 'mood', 'tempo'];
+
+      if (validSortFields.includes(sortField)) {
+        sortObj[sortField] = sortOrder === 'asc' ? 1 : -1;
+      } else {
+        sortObj.createdAt = -1; // Default sort
+      }
+
+      const [requests, total] = await Promise.all([
+        MusicRequest.find(searchQuery)
+          .sort(sortObj)
+          .skip(skip)
+          .limit(limit),
+        MusicRequest.countDocuments(searchQuery)
+      ]);
+
+      return {
+        requests,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          pages: Math.ceil(total / limit)
+        }
+      };
     } catch (error) {
       throw this._handleError(error);
     }
