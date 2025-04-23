@@ -163,6 +163,30 @@ class MusicRequestService {
   }
 
   /**
+   * Aktualisiert die Audio-URL und Metadaten einer Musikanfrage
+   * @param {string} id - Die ID der Musikanfrage
+   * @param {string} audioUrl - Die neue Audio-URL
+   * @param {Object} metadata - Die Metadaten der Audiodatei
+   * @returns {Promise<Object>} Die aktualisierte Musikanfrage
+   */
+  async updateAudioWithMetadata(id, audioUrl, metadata) {
+    try {
+      const request = await MusicRequest.findById(id);
+      if (!request) {
+        const error = new Error('Music request not found');
+        error.code = 'REQUEST_NOT_FOUND';
+        throw error;
+      }
+
+      request.audioUrl = audioUrl;
+      request.audioMetadata = metadata;
+      return await request.save();
+    } catch (error) {
+      throw this._handleError(error);
+    }
+  }
+
+  /**
    * Standardisierte Fehlerbehandlung
    * @private
    */

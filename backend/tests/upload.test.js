@@ -43,7 +43,7 @@ describe('Upload API', () => {
   });
 
   describe('POST /api/v1/uploads', () => {
-    it('should upload an audio file', async () => {
+    it('should upload an audio file and extract metadata', async () => {
       // Create a test audio file
       const testFilePath = path.join(UPLOAD_DIR, 'test.mp3');
       await fs.writeFile(testFilePath, 'dummy audio content');
@@ -58,9 +58,17 @@ describe('Upload API', () => {
       expect(res.body.data).toHaveProperty('audioUrl');
       expect(res.body.data.audioUrl).toMatch(/^\/uploads\/.+\.mp3$/);
 
-      // Verify the music request was updated
+      // Verify metadata is included in the response
+      expect(res.body.data).toHaveProperty('metadata');
+      expect(res.body.data.metadata).toHaveProperty('fileSize');
+      expect(res.body.data.metadata).toHaveProperty('format');
+
+      // Verify the music request was updated with URL and metadata
       const updatedRequest = await MusicRequest.findById(musicRequest._id);
       expect(updatedRequest.audioUrl).toBe(res.body.data.audioUrl);
+      expect(updatedRequest.audioMetadata).toBeDefined();
+      expect(updatedRequest.audioMetadata.fileSize).toBe(res.body.data.metadata.fileSize);
+      expect(updatedRequest.audioMetadata.format).toBe(res.body.data.metadata.format);
 
       // Clean up test file
       await fs.unlink(testFilePath);
@@ -119,21 +127,70 @@ describe('Upload API', () => {
       // Clean up test file
       await fs.unlink(testFilePath);
     });
+
+    it('should handle metadata extraction errors gracefully', async () => {
+      // Create a file with audio extension but invalid audio content
+      const testFilePath = path.join(UPLOAD_DIR, 'invalid-audio.mp3');
+      await fs.writeFile(testFilePath, 'This is not valid audio content');
+
+      const res = await request(app)
+        .post('/api/v1/uploads')
+        .field('requestId', musicRequest._id.toString())
+        .attach('file', testFilePath);
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('audioUrl');
+
+      // Verify basic metadata is still included
+      expect(res.body.data).toHaveProperty('metadata');
+      expect(res.body.data.metadata).toHaveProperty('fileSize');
+      expect(res.body.data.metadata).toHaveProperty('format');
+      expect(res.body.data.metadata.format).toBe('mp3');
+
+      // Verify the music request was updated with basic metadata
+      const updatedRequest = await MusicRequest.findById(musicRequest._id);
+      expect(updatedRequest.audioMetadata).toBeDefined();
+      expect(updatedRequest.audioMetadata.fileSize).toBe(res.body.data.metadata.fileSize);
+      expect(updatedRequest.audioMetadata.format).toBe('mp3');
+
+      // Clean up test file
+      await fs.unlink(testFilePath);
+    });
   });
 
   describe('GET /api/v1/uploads/:filename', () => {
-    it('should stream an audio file', async () => {
-      // Create a test audio file
+    it('should stream an MP3 file with correct content type', async () => {
+      // Create a test MP3 file
       const filename = 'test-stream.mp3';
       const testFilePath = path.join(UPLOAD_DIR, filename);
       await fs.writeFile(testFilePath, 'dummy audio content');
 
       const res = await request(app)
         .get(`/api/v1/uploads/${filename}`)
-        .expect('Content-Type', /audio/);
+        .expect('Content-Type', 'audio/mpeg');
 
       expect(res.statusCode).toBe(200);
-      expect(res.header['content-type']).toMatch(/audio/);
+      expect(res.header['content-type']).toBe('audio/mpeg');
+      expect(res.header['content-length']).toBeDefined();
+      expect(res.header['accept-ranges']).toBe('bytes');
+
+      // Clean up test file
+      await fs.unlink(testFilePath);
+    });
+
+    it('should stream a WAV file with correct content type', async () => {
+      // Create a test WAV file
+      const filename = 'test-stream.wav';
+      const testFilePath = path.join(UPLOAD_DIR, filename);
+      await fs.writeFile(testFilePath, 'dummy wav audio content');
+
+      const res = await request(app)
+        .get(`/api/v1/uploads/${filename}`)
+        .expect('Content-Type', 'audio/wav');
+
+      expect(res.statusCode).toBe(200);
+      expect(res.header['content-type']).toBe('audio/wav');
       expect(res.header['content-length']).toBeDefined();
       expect(res.header['accept-ranges']).toBe('bytes');
 
