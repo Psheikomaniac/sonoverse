@@ -203,12 +203,13 @@ class MusicRequestService {
   }
 
   /**
-   * Aktualisiert nur den Songtext einer Musikanfrage
+   * Aktualisiert die Audio-URL und Metadaten einer Musikanfrage
    * @param {string} id - Die ID der Musikanfrage
-   * @param {string} lyrics - Der neue Songtext
+   * @param {string} audioUrl - Die neue Audio-URL
+   * @param {Object} metadata - Die Metadaten der Audiodatei
    * @returns {Promise<Object>} Die aktualisierte Musikanfrage
    */
-  async updateLyrics(id, lyrics) {
+  async updateAudioWithMetadata(id, audioUrl, metadata) {
     try {
       const request = await MusicRequest.findById(id);
       if (!request) {
@@ -217,14 +218,8 @@ class MusicRequestService {
         throw error;
       }
 
-      // Validate lyrics length
-      if (lyrics && lyrics.length > 5000) {
-        const error = new Error('Lyrics cannot be more than 5000 characters');
-        error.code = 'VALIDATION_ERROR';
-        throw error;
-      }
-
-      request.lyrics = lyrics;
+      request.audioUrl = audioUrl;
+      request.audioMetadata = metadata;
       return await request.save();
     } catch (error) {
       throw this._handleError(error);

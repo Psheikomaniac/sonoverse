@@ -43,6 +43,15 @@ const musicRequestSchema = new mongoose.Schema({
   audioUrl: {
     type: String,
     trim: true
+  },
+  audioMetadata: {
+    duration: Number,       // Duration in seconds
+    format: String,         // File format (e.g., 'mp3', 'wav')
+    bitrate: Number,        // Bitrate in kbps
+    sampleRate: Number,     // Sample rate in Hz
+    channels: Number,       // Number of audio channels
+    fileSize: Number,       // File size in bytes
+    encoding: String        // Audio encoding
   }
 }, {
   timestamps: true, // Adds createdAt and updatedAt fields automatically
