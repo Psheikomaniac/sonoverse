@@ -153,18 +153,8 @@ class MusicRequestController {
   async updateLyrics(req, res, next) {
     try {
       const { lyrics } = req.body;
-
-      if (!lyrics && lyrics !== '') {
-        return res.status(400).json({
-          success: false,
-          error: {
-            message: 'Lyrics are required',
-            code: 'VALIDATION_ERROR'
-          }
-        });
-      }
-
       const request = await musicRequestService.updateLyrics(req.params.id, lyrics);
+
       res.json({
         success: true,
         data: {
