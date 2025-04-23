@@ -54,6 +54,54 @@ const validateMusicRequest = (req, res, next) => {
     errors.push({ field: 'description', message: 'Description cannot be more than 500 characters' });
   }
 
+  // Validiere instrumentList (optional)
+  if (req.body.instrumentList) {
+    if (!Array.isArray(req.body.instrumentList)) {
+      errors.push({ field: 'instrumentList', message: 'Instrument list must be an array' });
+    } else if (req.body.instrumentList.length > 20) {
+      errors.push({ field: 'instrumentList', message: 'Instrument list cannot contain more than 20 instruments' });
+    }
+  }
+
+  // Validiere referenceTrackUrl (optional)
+  if (req.body.referenceTrackUrl) {
+    try {
+      new URL(req.body.referenceTrackUrl);
+    } catch (e) {
+      errors.push({ field: 'referenceTrackUrl', message: 'Reference track URL must be a valid URL' });
+    }
+  }
+
+  // Validiere keySignature (optional)
+  if (req.body.keySignature) {
+    const validKeySignatures = [
+      'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 
+      'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
+      'C minor', 'C# minor', 'Db minor', 'D minor', 'D# minor', 
+      'Eb minor', 'E minor', 'F minor', 'F# minor', 'Gb minor', 
+      'G minor', 'G# minor', 'Ab minor', 'A minor', 'A# minor', 
+      'Bb minor', 'B minor'
+    ];
+    if (!validKeySignatures.includes(req.body.keySignature)) {
+      errors.push({ field: 'keySignature', message: `Key signature must be one of: ${validKeySignatures.join(', ')}` });
+    }
+  }
+
+  // Validiere targetAudience (optional)
+  if (req.body.targetAudience && req.body.targetAudience.length > 200) {
+    errors.push({ field: 'targetAudience', message: 'Target audience description cannot be more than 200 characters' });
+  }
+
+  // Validiere vocalStyle (optional)
+  if (req.body.vocalStyle && req.body.vocalStyle.length > 200) {
+    errors.push({ field: 'vocalStyle', message: 'Vocal style description cannot be more than 200 characters' });
+  }
+
+  // Validiere structureNotes (optional)
+  if (req.body.structureNotes && req.body.structureNotes.length > 500) {
+    errors.push({ field: 'structureNotes', message: 'Structure notes cannot be more than 500 characters' });
+  }
+
   // Wenn Fehler gefunden wurden, sende Fehlerantwort
   if (errors.length > 0) {
     return res.status(400).json({

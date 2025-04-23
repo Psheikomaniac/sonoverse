@@ -10,7 +10,8 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "migrate:extended-music-parameters": "node scripts/migrateExtendedMusicParameters.js"
   },
   "keywords": [],
   "author": "",

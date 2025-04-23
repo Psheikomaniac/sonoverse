@@ -43,6 +43,33 @@ describe('Music Request API', () => {
       expect(res.body.data).toHaveProperty('status', 'received');
     });
 
+    it('should create a music request with extended parameters', async () => {
+      const extendedRequest = {
+        ...sampleRequest,
+        instrumentList: ['guitar', 'piano', 'drums'],
+        referenceTrackUrl: 'https://example.com/reference.mp3',
+        keySignature: 'C minor',
+        targetAudience: 'Young adults',
+        vocalStyle: 'Soft and melodic',
+        structureNotes: 'Verse-Chorus-Verse-Chorus-Bridge-Chorus'
+      };
+
+      const res = await request(app)
+        .post('/api/v1/requests')
+        .send(extendedRequest);
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('title', extendedRequest.title);
+      expect(res.body.data).toHaveProperty('instrumentList');
+      expect(res.body.data.instrumentList).toEqual(extendedRequest.instrumentList);
+      expect(res.body.data).toHaveProperty('referenceTrackUrl', extendedRequest.referenceTrackUrl);
+      expect(res.body.data).toHaveProperty('keySignature', extendedRequest.keySignature);
+      expect(res.body.data).toHaveProperty('targetAudience', extendedRequest.targetAudience);
+      expect(res.body.data).toHaveProperty('vocalStyle', extendedRequest.vocalStyle);
+      expect(res.body.data).toHaveProperty('structureNotes', extendedRequest.structureNotes);
+    });
+
     it('should validate required fields', async () => {
       const res = await request(app)
         .post('/api/v1/requests')
