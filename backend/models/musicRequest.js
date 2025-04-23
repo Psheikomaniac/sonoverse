@@ -95,6 +95,48 @@ const musicRequestSchema = new mongoose.Schema({
     channels: Number,       // Number of audio channels
     fileSize: Number,       // File size in bytes
     encoding: String        // Audio encoding
+  },
+  // Extended music parameters
+  instrumentList: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(v) {
+        return v.length <= 20; // Maximum 20 instruments
+      },
+      message: 'Instrument list cannot contain more than 20 instruments'
+    }
+  },
+  referenceTrackUrl: {
+    type: String,
+    trim: true
+  },
+  keySignature: {
+    type: String,
+    trim: true,
+    enum: [
+      'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 
+      'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
+      'C minor', 'C# minor', 'Db minor', 'D minor', 'D# minor', 
+      'Eb minor', 'E minor', 'F minor', 'F# minor', 'Gb minor', 
+      'G minor', 'G# minor', 'Ab minor', 'A minor', 'A# minor', 
+      'Bb minor', 'B minor'
+    ]
+  },
+  targetAudience: {
+    type: String,
+    trim: true,
+    maxLength: [200, 'Target audience description cannot be more than 200 characters']
+  },
+  vocalStyle: {
+    type: String,
+    trim: true,
+    maxLength: [200, 'Vocal style description cannot be more than 200 characters']
+  },
+  structureNotes: {
+    type: String,
+    trim: true,
+    maxLength: [500, 'Structure notes cannot be more than 500 characters']
   }
 }, {
   timestamps: true, // Adds createdAt and updatedAt fields automatically
