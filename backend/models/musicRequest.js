@@ -55,10 +55,6 @@ musicRequestSchema.index({ status: 1, createdAt: -1 });
 musicRequestSchema.index({ genre: 1 });
 
 // Pre-save Hook für die Aktualisierung von updatedAt
-musicRequestSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
-});
 
 // Virtuals für zusätzliche berechnete Eigenschaften
 musicRequestSchema.virtual('isCompleted').get(function() {
