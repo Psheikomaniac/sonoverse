@@ -24,6 +24,8 @@ const errorHandler = (err, req, res, _next) => {
       break;
     case 'REQUEST_NOT_FOUND':
     case 'FILE_NOT_FOUND':
+    case 'VERSION_NOT_FOUND':
+    case 'COMPARISON_ERROR':
       statusCode = 404;
       break;
     case 'FILE_UPLOAD_ERROR':
